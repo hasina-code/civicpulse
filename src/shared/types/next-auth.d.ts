@@ -15,3 +15,10 @@ declare module "next-auth" {
     departmentId: string | null;
   }
 }
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    role?: UserRole;
+    departmentId?: string | null;
+  }
+}
