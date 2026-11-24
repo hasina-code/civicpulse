@@ -1,0 +1,236 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  STAFF
+  CITIZEN
+}
+
+enum IssueCategory {
+  ROAD_DAMAGE
+  STREETLIGHT
+  DRAINAGE
+  FOOTPATH
+  WASTE_MANAGEMENT
+  PUBLIC_INFRASTRUCTURE
+}
+
+enum IssuePriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum IssueStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  ASSIGNED
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+}
+
+model User {
+  id                 String         @id @default(cuid())
+  name               String
+  email              String         @unique
+  passwordHash       String
+  phone              String?
+  role               UserRole       @default(CITIZEN)
+  isActive           Boolean        @default(true)
+  departmentId       String?
+  department         Department?    @relation("DepartmentMembers", fields: [departmentId], references: [id], onDelete: SetNull)
+  managedDepartment  Department?    @relation("DepartmentManager")
+  reportedIssues     Issue[]        @relation("IssueReporter")
+  verifiedIssues     Issue[]        @relation("IssueVerifier")
+  assignedTasks      Task[]         @relation("TaskAssignee")
+  assignedByTasks    Task[]         @relation("TaskAssigner")
+  taskUpdates        TaskUpdate[]
+  issueHistory       IssueHistory[]
+  feedback           Feedback[]
+  notifications      Notification[]
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  @@index([departmentId, role])
+  @@index([role, isActive])
+}
+
+model Department {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  description String?
+  managerId   String?   @unique
+  manager     User?     @relation("DepartmentManager", fields: [managerId], references: [id], onDelete: SetNull)
+  members     User[]    @relation("DepartmentMembers")
+  issues      Issue[]
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Location {
+  id        String   @id @default(cuid())
+  name      String
+  area      String
+  ward      String?
+  address   String
+  city      String   @default("Dhaka")
+  latitude  Float
+  longitude Float
+  issues    Issue[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([area, ward])
+  @@index([latitude, longitude])
+}
+
+model Issue {
+  id                String          @id @default(cuid())
+  title             String
+  description       String
+  category          IssueCategory
+  priority          IssuePriority   @default(MEDIUM)
+  status            IssueStatus     @default(SUBMITTED)
+  imageUrls         String[]        @default([])
+  address           String
+  latitude          Float
+  longitude         Float
+  locationId        String?
+  location          Location?       @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  departmentId      String
+  department        Department      @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  reporterId        String
+  reporter          User            @relation("IssueReporter", fields: [reporterId], references: [id], onDelete: Restrict)
+  duplicateOfId     String?
+  duplicateOf       Issue?          @relation("IssueDuplicates", fields: [duplicateOfId], references: [id], onDelete: SetNull)
+  possibleDuplicates Issue[]        @relation("IssueDuplicates")
+  verifiedById      String?
+  verifiedBy        User?           @relation("IssueVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
+  verifiedAt        DateTime?
+  resolvedAt        DateTime?
+  tasks             Task[]
+  history           IssueHistory[]
+  feedback          Feedback?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([status, departmentId])
+  @@index([category])
+  @@index([createdAt])
+  @@index([latitude, longitude])
+  @@index([reporterId, createdAt])
+  @@index([locationId])
+  @@index([duplicateOfId])
+}
+
+model Task {
+  id                  String       @id @default(cuid())
+  issueId             String
+  issue               Issue        @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  assigneeId          String
+  assignee            User         @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: Restrict)
+  assignedById        String
+  assignedBy          User         @relation("TaskAssigner", fields: [assignedById], references: [id], onDelete: Restrict)
+  status              TaskStatus   @default(PENDING)
+  dueAt               DateTime?
+  completionPhotoUrls String[]     @default([])
+  reviewNote          String?
+  updates             TaskUpdate[]
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  @@index([assigneeId, status])
+  @@index([issueId, status])
+  @@index([dueAt])
+}
+
+model TaskUpdate {
+  id        String   @id @default(cuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  note      String
+  photoUrls String[] @default([])
+  createdAt DateTime @default(now())
+
+  @@index([taskId, createdAt])
+  @@index([authorId])
+}
+
+model IssueHistory {
+  id         String      @id @default(cuid())
+  issueId    String
+  issue      Issue       @relation(fields: [issueId], references: [id], onDelete: Restrict)
+  actorId    String
+  actor      User        @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  fromStatus IssueStatus?
+  toStatus   IssueStatus
+  note       String?
+  createdAt  DateTime    @default(now())
+
+  @@index([issueId, createdAt])
+  @@index([actorId])
+}
+
+model Feedback {
+  id         String   @id @default(cuid())
+  issueId    String   @unique
+  issue      Issue    @relation(fields: [issueId], references: [id], onDelete: Restrict)
+  reporterId String
+  reporter   User     @relation(fields: [reporterId], references: [id], onDelete: Restrict)
+  rating     Int
+  comment    String?
+  createdAt  DateTime @default(now())
+
+  @@index([reporterId, createdAt])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+}
+
+model SystemConfig {
+  id                        String   @id @default("default")
+  cityName                  String   @default("Dhaka")
+  defaultLatitude           Float    @default(23.8103)
+  defaultLongitude          Float    @default(90.4125)
+  slaHoursLow               Int      @default(168)
+  slaHoursMedium            Int      @default(72)
+  slaHoursHigh              Int      @default(24)
+  slaHoursCritical          Int      @default(8)
+  duplicateRadiusMeters     Int      @default(50)
+  dispatchPolicy            String   @default("CATEGORY")
+  reminderIntervalMinutes   Int      @default(60)
+  updatedAt                 DateTime @updatedAt
+}
