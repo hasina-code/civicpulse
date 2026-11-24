@@ -6,8 +6,6 @@ import {
   coordinatesSchema,
   idSchema,
   imageUrlsSchema,
-  latitudeSchema,
-  longitudeSchema,
   trimmedString,
 } from "./common.schema";
 
@@ -54,8 +52,8 @@ export const updateIssuePrioritySchema = z.object({
 });
 
 export const nearbyIssuesQuerySchema = z.object({
-  latitude: latitudeSchema,
-  longitude: longitudeSchema,
+  latitude: z.coerce.number().min(-90).max(90),
+  longitude: z.coerce.number().min(-180).max(180),
   radius: z.coerce.number().int().min(1).max(10000).optional(),
   category: z.enum(ISSUE_CATEGORIES).optional(),
 });

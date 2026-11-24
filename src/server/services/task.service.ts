@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { TASK_STATUSES } from "../../shared/constants/status";
-import { taskCompletionSchema, taskProgressSchema, taskReviewSchema } from "../../shared/validators/task.schema";
+import {
+  taskCompletionSchema,
+  taskProgressSchema,
+  taskReviewSchema,
+  updateTaskSchema,
+} from "../../shared/validators/task.schema";
 import { paginationSchema } from "../../shared/validators/common.schema";
 import type { PermissionUser } from "../permissions/issue.permissions";
 import { canReviewTask, canUpdateTask, canViewTask } from "../permissions/task.permissions";
@@ -86,6 +91,67 @@ export async function getTaskById(actor: PermissionUser, taskId: string) {
     throw new AppError("You cannot access this task", 403, "FORBIDDEN");
   }
   return task;
+}
+
+export async function updateTask(
+  actor: PermissionUser,
+  taskId: string,
+  input: unknown,
+) {
+  const data = updateTaskSchema.parse(input);
+  const task = await getTaskById(actor, taskId);
+  if (actor.role !== "ADMIN" && actor.role !== "MANAGER") {
+    throw new AppError("Only managers or admins may update task assignment", 403, "FORBIDDEN");
+  }
+  if (!canUpdateTask(actor, task)) {
+    throw new AppError("You cannot update this task", 403, "FORBIDDEN");
+  }
+  if (data.status !== undefined) {
+    throw new AppError(
+      "Task status changes must use progress, completion, or review actions",
+      400,
+      "TASK_STATUS_WORKFLOW_ONLY",
+    );
+  }
+
+  if (data.assigneeId) {
+    const assignee = await prisma.user.findUnique({
+      where: { id: data.assigneeId },
+      select: { id: true, role: true, departmentId: true, isActive: true },
+    });
+    if (
+      !assignee ||
+      !assignee.isActive ||
+      assignee.role !== "STAFF" ||
+      assignee.departmentId !== task.issue.departmentId
+    ) {
+      throw new AppError(
+        "Assignee must be active staff in the issue department",
+        400,
+        "INVALID_ASSIGNEE",
+      );
+    }
+  }
+
+  return prisma.$transaction(async (transaction) => {
+    const updatedTask = await transaction.task.update({
+      where: { id: taskId },
+      data: {
+        ...(data.assigneeId ? { assigneeId: data.assigneeId } : {}),
+        ...(data.dueAt !== undefined ? { dueAt: data.dueAt } : {}),
+      },
+    });
+    if (data.assigneeId && data.assigneeId !== task.assigneeId) {
+      await transaction.taskUpdate.create({
+        data: {
+          taskId,
+          authorId: actor.id,
+          note: `Task reassigned from ${task.assigneeId} to ${data.assigneeId}.`,
+        },
+      });
+    }
+    return updatedTask;
+  });
 }
 
 export async function addTaskProgress(

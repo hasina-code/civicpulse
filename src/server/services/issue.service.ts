@@ -9,7 +9,11 @@ import {
 import type { PermissionUser } from "../permissions/issue.permissions";
 import { canManageIssue, canUpdateIssue, canViewIssue } from "../permissions/issue.permissions";
 import { AppError } from "../utils/errors";
-import { findNearbyDuplicates } from "../utils/duplicate";
+import {
+  DEFAULT_DUPLICATE_RADIUS_METERS,
+  findNearbyDuplicates,
+} from "../utils/duplicate";
+import { getBoundingBox, haversineDistanceMeters } from "../utils/geo";
 import { getPagination, createPaginatedResult } from "../utils/pagination";
 import { parseIssueQuery } from "../utils/query-parser";
 import { prisma } from "../db/prisma";
@@ -108,7 +112,6 @@ export async function listIssues(
   const { page, limit, skip } = getPagination(query.page, query.limit);
   const createdAt = dateRange(query.from, query.to);
   const where = {
-    ...issueScope(actor),
     ...(query.q
       ? {
           OR: [
@@ -374,12 +377,59 @@ export async function changeIssueStatus(
 }
 
 export async function findNearbyIssues(input: {
-  category: (typeof ISSUE_CATEGORIES)[number];
+  category?: (typeof ISSUE_CATEGORIES)[number];
   latitude: number;
   longitude: number;
   radiusMeters?: number;
   excludeIssueId?: string;
 }) {
-  return findNearbyDuplicates(input);
+  if (input.category) {
+    return findNearbyDuplicates({ ...input, category: input.category });
+  }
+
+  const config = await prisma.systemConfig.findUnique({
+    where: { id: "default" },
+    select: { duplicateRadiusMeters: true },
+  });
+  const radiusMeters =
+    input.radiusMeters ??
+    config?.duplicateRadiusMeters ??
+    DEFAULT_DUPLICATE_RADIUS_METERS;
+  const bounds = getBoundingBox(input, radiusMeters);
+  const candidates = await prisma.issue.findMany({
+    where: {
+      status: { in: ISSUE_STATUSES.slice(0, 4) },
+      ...(input.excludeIssueId ? { id: { not: input.excludeIssueId } } : {}),
+      AND: [
+        {
+          latitude: { gte: bounds.minLatitude, lte: bounds.maxLatitude },
+        },
+        {
+          OR: bounds.longitudeRanges.map((range) => ({
+            longitude: { gte: range.min, lte: range.max },
+          })),
+        },
+      ],
+    },
+    select: {
+      id: true,
+      title: true,
+      category: true,
+      priority: true,
+      status: true,
+      address: true,
+      latitude: true,
+      longitude: true,
+      locationId: true,
+      createdAt: true,
+    },
+  });
+  return candidates
+    .map((issue) => ({
+      ...issue,
+      distanceMeters: haversineDistanceMeters(input, issue),
+    }))
+    .filter((issue) => issue.distanceMeters <= radiusMeters)
+    .sort((left, right) => left.distanceMeters - right.distanceMeters);
 }
 

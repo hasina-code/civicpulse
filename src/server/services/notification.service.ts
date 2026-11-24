@@ -1,5 +1,75 @@
 import type { IssueStatus } from "../../shared/constants/status";
+import type { PaginatedResult } from "../../shared/types/api";
 import { prisma } from "../db/prisma";
+import { AppError } from "../utils/errors";
+import { createPaginatedResult, getPagination } from "../utils/pagination";
+
+export interface NotificationQuery {
+  page?: unknown;
+  limit?: unknown;
+  since?: Date;
+}
+
+export async function listNotifications(
+  userId: string,
+  query: NotificationQuery = {},
+): Promise<PaginatedResult<{
+  id: string;
+  title: string;
+  message: string;
+  type: string;
+  link: string | null;
+  readAt: Date | null;
+  createdAt: Date;
+}>> {
+  const { page, limit, skip } = getPagination(query.page, query.limit);
+  const where = {
+    userId,
+    ...(query.since ? { createdAt: { gt: query.since } } : {}),
+  };
+  const [notifications, total] = await prisma.$transaction([
+    prisma.notification.findMany({
+      where,
+      select: {
+        id: true,
+        title: true,
+        message: true,
+        type: true,
+        link: true,
+        readAt: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: limit,
+    }),
+    prisma.notification.count({ where }),
+  ]);
+  return createPaginatedResult(notifications, total, page, limit);
+}
+
+export async function markNotificationRead(
+  userId: string,
+  notificationId: string,
+) {
+  const changed = await prisma.notification.updateMany({
+    where: { id: notificationId, userId, readAt: null },
+    data: { readAt: new Date() },
+  });
+  if (changed.count === 0) {
+    const notification = await prisma.notification.findFirst({
+      where: { id: notificationId, userId },
+    });
+    if (!notification) {
+      throw new AppError("Notification not found", 404, "NOTIFICATION_NOT_FOUND");
+    }
+    return notification;
+  }
+
+  return prisma.notification.findUniqueOrThrow({
+    where: { id: notificationId },
+  });
+}
 
 interface NotificationInput {
   userId: string;

@@ -1,5 +1,8 @@
 import type { Prisma } from "@prisma/client";
+import type { PermissionUser } from "../permissions/issue.permissions";
+import { canViewIssue } from "../permissions/issue.permissions";
 import { prisma } from "../db/prisma";
+import { AppError } from "../utils/errors";
 
 type ActivityClient = Pick<Prisma.TransactionClient, "issue" | "issueHistory">;
 
@@ -43,5 +46,27 @@ export async function recordIssueActivity(
       toStatus: issue.status,
       note,
     },
+  });
+}
+
+export async function getIssueHistory(
+  actor: PermissionUser,
+  issueId: string,
+) {
+  const issue = await prisma.issue.findUnique({
+    where: { id: issueId },
+    include: { tasks: { select: { assigneeId: true } } },
+  });
+  if (!issue) {
+    throw new AppError("Issue not found", 404, "ISSUE_NOT_FOUND");
+  }
+  if (!canViewIssue(actor, issue)) {
+    throw new AppError("You cannot access this issue history", 403, "FORBIDDEN");
+  }
+
+  return prisma.issueHistory.findMany({
+    where: { issueId },
+    include: { actor: { select: { id: true, name: true, role: true } } },
+    orderBy: { createdAt: "asc" },
   });
 }

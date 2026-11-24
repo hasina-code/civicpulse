@@ -11,7 +11,11 @@ function assertAdmin(actor: PermissionUser): void {
 }
 
 export async function getSystemConfig() {
-  return prisma.systemConfig.findUnique({ where: { id: "default" } });
+  return prisma.systemConfig.upsert({
+    where: { id: "default" },
+    create: { id: "default" },
+    update: {},
+  });
 }
 
 export async function updateSystemConfig(actor: PermissionUser, input: unknown) {
