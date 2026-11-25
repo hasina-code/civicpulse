@@ -12,6 +12,7 @@ const roleRoutePrefixes: Record<UserRole, readonly string[]> = {
 
 const sharedRoutePrefixes = ["/issues", "/map", "/notifications", "/settings"];
 const signInRoutes = [PUBLIC_ROUTES.LOGIN, PUBLIC_ROUTES.REGISTER];
+const publicAssetPrefixes = ["/images", "/videos"];
 
 function isWithinRoute(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(`${prefix}/`);
@@ -23,6 +24,10 @@ function dashboardRedirect(request: NextRequest, role: UserRole): NextResponse {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  if (publicAssetPrefixes.some((prefix) => isWithinRoute(pathname, prefix))) {
+    return NextResponse.next();
+  }
+
   const token = await getToken({
     req: request,
     secret: process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET,
