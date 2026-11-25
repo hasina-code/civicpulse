@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --color-dark-navy: #111c33;
+  --color-warm-cream: #f7f5ee;
+  --color-card: #ffffff;
+  --color-deep-night: #0b1120;
+  --color-gold: #facc15;
+  --color-royal-blue: #2563eb;
+  --background: var(--color-warm-cream);
+  --foreground: var(--color-dark-navy);
+}
+
+.dark {
+  color-scheme: dark;
+  --background: var(--color-deep-night);
+  --foreground: var(--color-warm-cream);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+::selection {
+  background-color: var(--color-gold);
+  color: var(--color-dark-navy);
+}
