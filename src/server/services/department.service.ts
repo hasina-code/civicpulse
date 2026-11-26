@@ -60,6 +60,14 @@ export async function listDepartments(actor: PermissionUser) {
   });
 }
 
+export function listPublicDepartments() {
+  return prisma.department.findMany({
+    where: { isActive: true },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
+}
+
 export async function getDepartmentById(
   actor: PermissionUser,
   departmentId: string,

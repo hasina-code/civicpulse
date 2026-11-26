@@ -1,8 +1,10 @@
 import { createDepartmentSchema } from "../../../shared/validators/department.schema";
-import { requireAdmin, requireUser } from "../../../server/permissions/guards";
+import { requireAdmin } from "../../../server/permissions/guards";
+import { getCurrentSession } from "../../../server/auth/session";
 import {
   createDepartment,
   listDepartments,
+  listPublicDepartments,
 } from "../../../server/services/department.service";
 import {
   jsonSuccess,
@@ -12,8 +14,18 @@ import {
 
 export function GET() {
   return withApiErrors(async () => {
-    const actor = await requireUser();
-    return jsonSuccess(await listDepartments(actor));
+    const session = await getCurrentSession();
+    if (!session?.user.id) {
+      return jsonSuccess(await listPublicDepartments());
+    }
+
+    return jsonSuccess(
+      await listDepartments({
+        id: session.user.id,
+        role: session.user.role,
+        departmentId: session.user.departmentId,
+      }),
+    );
   });
 }
 
