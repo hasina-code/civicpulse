@@ -2,8 +2,9 @@
 
 import { Menu, X } from "lucide-react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { useState } from "react";
-import { SessionControls } from "./SessionControls";
+import { ProfileAvatar, SessionControls } from "./SessionControls";
 import { ThemeToggle } from "./ThemeToggle";
 
 type NavigationLink = {
@@ -13,9 +14,22 @@ type NavigationLink = {
 
 export function MobileMenu({ links }: { links: NavigationLink[] }) {
   const [isOpen, setIsOpen] = useState(false);
+  const { data: session, status } = useSession();
 
   return (
-    <div className="relative xl:hidden">
+    <div className="relative flex items-center gap-2 xl:hidden">
+      {status === "authenticated" && session?.user ? (
+        <button
+          aria-expanded={isOpen}
+          aria-haspopup="menu"
+          aria-label="Open profile menu"
+          className="flex h-10 w-10 items-center justify-center rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563EB]"
+          onClick={() => setIsOpen((open) => !open)}
+          type="button"
+        >
+          <ProfileAvatar user={session.user} />
+        </button>
+      ) : null}
       <button
         aria-expanded={isOpen}
         aria-label={isOpen ? "Close navigation menu" : "Open navigation menu"}
@@ -48,7 +62,7 @@ export function MobileMenu({ links }: { links: NavigationLink[] }) {
             <div className="mb-3 px-2">
               <ThemeToggle />
             </div>
-            <SessionControls layout="mobile" />
+            <SessionControls layout="mobile" onNavigate={() => setIsOpen(false)} />
           </div>
         </nav>
       ) : null}
