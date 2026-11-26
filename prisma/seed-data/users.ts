@@ -80,14 +80,20 @@ export async function generateSeedUsers(
     throw new Error(`Missing seed departments: ${missingDepartments.join(", ")}`);
   }
 
-  const password = process.env.SEED_DEFAULT_PASSWORD || "Password123!";
-  const passwordHash = await hash(password, 10);
+  const defaultPassword = process.env.SEED_DEFAULT_PASSWORD || "Password123!";
+  const passwordHash = await hash(defaultPassword, 10);
+  const demoPasswordHashes = {
+    admin: await hash("admin123", 10),
+    manager: await hash("manager123", 10),
+    staff: await hash("staff123", 10),
+    citizen: await hash("citizen123", 10),
+  };
   const users: SeedUser[] = [
     {
       id: "seed-user-admin",
       name: "CivicPulse Administrator",
-      email: "demo.admin@civicpulse.local",
-      passwordHash,
+      email: "admin@civicpulse.gov",
+      passwordHash: demoPasswordHashes.admin,
       role: "ADMIN",
       departmentId: null,
     },
@@ -109,9 +115,9 @@ export async function generateSeedUsers(
       name: departmentIndex === 0 ? "Demo Department Manager" : `${departmentName} Manager`,
       email:
         departmentIndex === 0
-          ? "demo.manager@civicpulse.local"
+          ? "manager.roads@civicpulse.gov"
           : `manager.${slug}@civicpulse.local`,
-      passwordHash,
+      passwordHash: departmentIndex === 0 ? demoPasswordHashes.manager : passwordHash,
       role: "MANAGER",
       departmentId: department.id,
     };
@@ -135,9 +141,9 @@ export async function generateSeedUsers(
       name: staffIndex === 0 ? "Demo Maintenance Staff" : name,
       email:
         staffIndex === 0
-          ? "demo.staff@civicpulse.local"
+          ? "staff.electric@civicpulse.gov"
           : `staff.${String(staffIndex + 1).padStart(2, "0")}@civicpulse.local`,
-      passwordHash,
+      passwordHash: staffIndex === 0 ? demoPasswordHashes.staff : passwordHash,
       role: "STAFF",
       departmentId: department.id,
     };
@@ -154,9 +160,9 @@ export async function generateSeedUsers(
       name: citizenIndex === 0 ? "Demo Citizen" : name,
       email:
         citizenIndex === 0
-          ? "demo.citizen@civicpulse.local"
+          ? "citizen.hasina@civicpulse.gov"
           : `citizen.${String(citizenIndex + 1).padStart(2, "0")}@civicpulse.local`,
-      passwordHash,
+      passwordHash: citizenIndex === 0 ? demoPasswordHashes.citizen : passwordHash,
       role: "CITIZEN",
       departmentId: null,
     });
