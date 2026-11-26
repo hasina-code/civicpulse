@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { citizenRegistrationSchema } from "../../../../shared/validators/auth.schema";
+import { registerSchema } from "../../../../shared/validators/auth.schema";
 import {
   EmailAlreadyRegisteredError,
-  registerCitizen,
+  RegistrationRoleRequiresInvitationError,
+  registerAccount,
 } from "../../../../server/services/auth.service";
 
 export async function POST(request: Request) {
@@ -20,7 +21,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const parsed = citizenRegistrationSchema.safeParse(body);
+  const parsed = registerSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
       {
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const user = await registerCitizen(parsed.data);
+    const user = await registerAccount(parsed.data);
     return NextResponse.json({ success: true, data: user }, { status: 201 });
   } catch (error) {
     if (error instanceof EmailAlreadyRegisteredError) {
@@ -46,6 +47,19 @@ export async function POST(request: Request) {
           error: { code: "EMAIL_ALREADY_REGISTERED", message: error.message },
         },
         { status: 409 },
+      );
+    }
+
+    if (error instanceof RegistrationRoleRequiresInvitationError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "INVITATION_REQUIRED",
+            message: error.message,
+          },
+        },
+        { status: 403 },
       );
     }
 

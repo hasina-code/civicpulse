@@ -1,10 +1,10 @@
 import { Prisma } from "@prisma/client";
 import type { z } from "zod";
-import { citizenRegistrationSchema } from "../../shared/validators/auth.schema";
+import { registerSchema } from "../../shared/validators/auth.schema";
 import { prisma } from "../db/prisma";
 import { hashPassword } from "../auth/password";
 
-export type CitizenRegistrationInput = z.infer<typeof citizenRegistrationSchema>;
+export type RegistrationInput = z.infer<typeof registerSchema>;
 
 export class EmailAlreadyRegisteredError extends Error {
   constructor() {
@@ -13,7 +13,18 @@ export class EmailAlreadyRegisteredError extends Error {
   }
 }
 
-export async function registerCitizen(input: CitizenRegistrationInput) {
+export class RegistrationRoleRequiresInvitationError extends Error {
+  constructor() {
+    super("Manager, staff, and admin accounts require an invitation from an administrator");
+    this.name = "RegistrationRoleRequiresInvitationError";
+  }
+}
+
+export async function registerAccount(input: RegistrationInput) {
+  if (input.role !== "CITIZEN") {
+    throw new RegistrationRoleRequiresInvitationError();
+  }
+
   const existingUser = await prisma.user.findUnique({
     where: { email: input.email },
     select: { id: true },
@@ -30,7 +41,7 @@ export async function registerCitizen(input: CitizenRegistrationInput) {
         email: input.email,
         passwordHash: await hashPassword(input.password),
         phone: input.phone || null,
-        role: "CITIZEN",
+        role: input.role,
       },
       select: {
         id: true,

@@ -55,7 +55,7 @@ export async function middleware(request: NextRequest) {
   }
 
   if (signInRoutes.some((route) => isWithinRoute(pathname, route))) {
-    return dashboardRedirect(request, role);
+    return NextResponse.next();
   }
 
   const isRoleRoute = Object.values(roleRoutePrefixes).some((prefixes) =>

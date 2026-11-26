@@ -7,8 +7,8 @@ export const PUBLIC_ROUTES = {
 } as const;
 
 export const DASHBOARD_ROUTES = {
-  ADMIN: "/admin/analytics",
-  MANAGER: "/manager/issues",
-  STAFF: "/staff/tasks",
-  CITIZEN: "/citizen/issues",
+  ADMIN: "/admin",
+  MANAGER: "/manager",
+  STAFF: "/staff",
+  CITIZEN: "/citizen",
 } as const satisfies Record<UserRole, string>;
