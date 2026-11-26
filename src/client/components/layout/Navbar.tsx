@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { MobileMenu } from "./MobileMenu";
 import { SessionControls } from "./SessionControls";
@@ -24,13 +25,24 @@ export function Navbar() {
           className="flex shrink-0 items-center gap-2 text-lg font-bold tracking-tight text-signal-navy dark:text-signal-cream"
           href="/"
         >
-          <span
+          <Image
+            alt=""
             aria-hidden="true"
-            className="flex h-8 w-8 items-center justify-center rounded-lg bg-signal-gold text-sm text-signal-navy"
-          >
-            C
+            className="h-11 w-11 object-contain"
+            height={44}
+            priority
+            src="/images/Logo.png"
+            width={44}
+          />
+          <span className="flex flex-col leading-none">
+            <span className="text-lg font-black tracking-tight">
+              <span  className="text-signal-navy dark:text-signal-cream">Civic</span>
+              <span className="text-[#0BA0CB]">Pulse</span>
+            </span>
+            <span className="mt-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+              Smart City Platform
+            </span>
           </span>
-          CivicPulse
         </Link>
         <nav
           aria-label="Main navigation"
