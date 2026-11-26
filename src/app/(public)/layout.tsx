@@ -1,13 +1,6 @@
 import type { ReactNode } from "react";
-import { Footer } from "../../client/components/layout/Footer";
-import { Navbar } from "../../client/components/layout/Navbar";
+import { PublicChrome } from "../../client/components/layout/PublicChrome";
 
 export default function PublicLayout({ children }: { children: ReactNode }) {
-  return (
-    <div className="flex min-h-screen flex-col overflow-x-clip">
-      <Navbar />
-      <main className="flex-1">{children}</main>
-      <Footer />
-    </div>
-  );
+  return <PublicChrome>{children}</PublicChrome>;
 }
