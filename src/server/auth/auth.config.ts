@@ -39,6 +39,7 @@ export const authOptions: NextAuthOptions = {
             name: true,
             email: true,
             passwordHash: true,
+            imageUrl: true,
             role: true,
             departmentId: true,
             isActive: true,
@@ -57,6 +58,7 @@ export const authOptions: NextAuthOptions = {
           id: user.id,
           name: user.name,
           email: user.email,
+          image: user.imageUrl,
           role: user.role,
           departmentId: user.departmentId,
         };
@@ -77,6 +79,7 @@ export const authOptions: NextAuthOptions = {
         where: { email: user.email },
         select: {
           id: true,
+          imageUrl: true,
           role: true,
           departmentId: true,
           isActive: true,
@@ -95,6 +98,7 @@ export const authOptions: NextAuthOptions = {
           },
           select: {
             id: true,
+            imageUrl: true,
             role: true,
             departmentId: true,
             isActive: true,
@@ -106,15 +110,22 @@ export const authOptions: NextAuthOptions = {
       }
 
       user.id = databaseUser.id;
+      user.image = databaseUser.imageUrl ?? user.image;
       user.role = databaseUser.role;
       user.departmentId = databaseUser.departmentId;
       return true;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.sub = user.id;
         token.role = user.role;
         token.departmentId = user.departmentId;
+        token.picture = user.image;
+      } else if (
+        trigger === "update" &&
+        typeof session?.image === "string"
+      ) {
+        token.picture = session.image;
       }
 
       return token;
@@ -124,6 +135,7 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.sub;
         session.user.role = token.role;
         session.user.departmentId = token.departmentId ?? null;
+        session.user.image = token.picture ?? null;
       }
 
       return session;
