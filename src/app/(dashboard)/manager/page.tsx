@@ -123,8 +123,8 @@ export default function ManagerDashboardPage() {
 
   return (
     <div className="mx-auto max-w-[1500px] px-5 py-8 sm:px-8">
-      {/* হিরো হেডার */}
-      {/* হিরো হেডার — Triage Overview কার্ড */}
+   
+     
       <header className="relative flex flex-col justify-between gap-5 overflow-hidden rounded-3xl border border-sky-500/20 bg-gradient-to-br from-sky-50/90 via-white to-slate-100/90 p-6 shadow-sm dark:border-sky-400/20 dark:from-[#091526] dark:via-slate-900/90 dark:to-sky-950/55 dark:backdrop-blur-xl sm:p-8 lg:flex-row lg:items-center">
         <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-sky-400/10 blur-3xl dark:bg-sky-400/15" />
         <div className="relative">
@@ -167,7 +167,7 @@ export default function ManagerDashboardPage() {
         </div>
       </header>
 
-      {/* এরর ব্যানার */}
+   
       {error ? (
         <div
           aria-live="polite"
@@ -185,7 +185,7 @@ export default function ManagerDashboardPage() {
         </div>
       ) : null}
 
-      {/* লোডিং স্কেলেটন */}
+
       {loading && !overview ? (
         <div
           aria-label="Loading triage overview"
@@ -200,7 +200,7 @@ export default function ManagerDashboardPage() {
         </div>
       ) : overview ? (
         <>
-          {/* ম্যাট্রিক কার্ড গ্রিড */}
+        
           <section
             aria-label="Department triage metrics"
             className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
@@ -236,7 +236,7 @@ export default function ManagerDashboardPage() {
             })}
           </section>
 
-          {/* ট্রায়াজ কিউ ও ক্রু ওয়ার্কলোড */}
+        
           <div className="mt-8 grid gap-6 xl:grid-cols-[1.45fr_1fr]">
             <section id="department-queue" className="scroll-mt-24">
               <div className="mb-3.5 flex items-center justify-between gap-3">
