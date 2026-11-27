@@ -9,6 +9,7 @@ import { HowItWorks } from "../../client/components/landing/HowItWorks";
 
 import { RoleEcosystem } from "../../client/components/landing/RoleEcosystem";
 import { StatusTimelineDemo } from "../../client/components/landing/StatusTimelineDemo";
+import { FeaturesSection } from "@/client/components/landing/features-section";
 
 export default function HomePage() {
   return (
@@ -18,6 +19,7 @@ export default function HomePage() {
       <CategoryGrid />
       <HowItWorks />
       <CityRadarPreview />
+      <FeaturesSection/>
       <RoleEcosystem />
       <StatusTimelineDemo />
       <ExecutiveInsights />
