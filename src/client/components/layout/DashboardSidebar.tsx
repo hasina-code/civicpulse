@@ -30,8 +30,8 @@ const roleNavigation: Record<UserRole, NavItem[]> = {
     { label: "My Reports", href: "/citizen/issues", icon: ClipboardList },
   ],
   MANAGER: [
-    { label: "Overview", href: "/manager", icon: LayoutDashboard },
-    { label: "Issue Queue", href: "/manager/issues", icon: ClipboardList },
+    { label: "Triage Overview", href: "/manager", icon: LayoutDashboard },
+    { label: "Department Queue", href: "/manager#department-queue", icon: ClipboardList },
     { label: "Reviews", href: "/manager/reviews", icon: ClipboardCheck },
     { label: "My Team", href: "/manager/team", icon: Users },
   ],
