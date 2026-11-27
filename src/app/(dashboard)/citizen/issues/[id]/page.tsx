@@ -87,7 +87,7 @@ const priorityMeta: Record<
     badge: "border-amber-400/35 bg-amber-400/10 text-amber-300",
   },
   CRITICAL: {
-   // label: "Critical Hazard",
+    label: "Critical Hazard",
     dot: "bg-rose-400",
     badge: "border-rose-400/40 bg-rose-500/15 text-rose-300",
   },
