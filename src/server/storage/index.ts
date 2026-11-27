@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { v2 as cloudinary } from "cloudinary";
+import { AppError } from "../utils/errors";
 import { validateImageFile, type ImageFileInput } from "./image-validator";
 
 const cloudinaryConfig = {
@@ -34,11 +35,14 @@ export interface StoredImage {
   storage: "cloudinary" | "local";
 }
 
-function uploadToCloudinary(buffer: Buffer): Promise<StoredImage> {
+function uploadToCloudinary(
+  buffer: Buffer,
+  folder: string,
+): Promise<StoredImage> {
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
       {
-        folder: "civicpulse/issues",
+        folder,
         resource_type: "image",
       },
       (error, result) => {
@@ -79,9 +83,64 @@ async function saveLocally(
   };
 }
 
-export async function uploadImage(input: ImageFileInput): Promise<StoredImage> {
-  const image = validateImageFile(input);
-  return hasCloudinaryConfig
-    ? uploadToCloudinary(image.buffer)
-    : saveLocally(image.buffer, image.extension);
+export async function uploadImage(
+  input: ImageFileInput,
+  folder = "civicpulse/issues",
+): Promise<StoredImage> {
+  let image: ReturnType<typeof validateImageFile>;
+  try {
+    image = validateImageFile(input);
+  } catch (error) {
+    if (error instanceof TypeError || error instanceof RangeError) {
+      throw new AppError(error.message, 400, "INVALID_IMAGE");
+    }
+    throw error;
+  }
+
+  if (!hasCloudinaryConfig) {
+    return saveLocally(image.buffer, image.extension);
+  }
+
+  try {
+    return await uploadToCloudinary(image.buffer, folder);
+  } catch (error) {
+    const providerMessage = getCloudinaryErrorMessage(error);
+    if (/unknown api[_ ]key|invalid api[_ ]key|api[_ ]key.*(?:invalid|reject)/i.test(providerMessage ?? "")) {
+      throw new AppError(
+        "Cloudinary rejected the configured API key. Check CLOUDINARY_API_KEY.",
+        502,
+        "INVALID_STORAGE_CONFIGURATION",
+      );
+    }
+
+    console.error(
+      "Cloudinary image upload failed:",
+      providerMessage ?? "Unknown provider error",
+    );
+    throw new AppError(
+      "Image storage is unavailable. Check the storage configuration and try again.",
+      502,
+      "IMAGE_UPLOAD_FAILED",
+    );
+  }
+}
+
+function getCloudinaryErrorMessage(error: unknown): string | undefined {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (
+    typeof error !== "object" ||
+    error === null ||
+    !("error" in error) ||
+    typeof error.error !== "object" ||
+    error.error === null ||
+    !("message" in error.error) ||
+    typeof error.error.message !== "string"
+  ) {
+    return undefined;
+  }
+
+  return error.error.message;
 }
