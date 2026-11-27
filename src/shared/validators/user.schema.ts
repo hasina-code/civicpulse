@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { USER_ROLES } from "../constants/roles";
-import { idSchema, trimmedString } from "./common.schema";
+import { idSchema, trimmedString, urlOrLocalPathSchema } from "./common.schema";
 
 const emailSchema = z.string().trim().email().max(254);
 const phoneSchema = z.string().trim().max(30).nullable().optional();
@@ -31,6 +31,7 @@ export const updateUserSchema = z
 export const updateProfileSchema = z.object({
   name: trimmedString(2, 100).optional(),
   phone: phoneSchema,
+  imageUrl: urlOrLocalPathSchema.optional(),
 }).refine((value) => Object.keys(value).length > 0, {
   message: "At least one field must be provided",
 });
