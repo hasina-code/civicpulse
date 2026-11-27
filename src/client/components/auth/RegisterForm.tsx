@@ -4,9 +4,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { getProviders, getSession, signIn } from "next-auth/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { ChangeEvent } from "react";
-import { useEffect, useRef, useState } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { apiClient } from "../../lib/api-client";
 import { DASHBOARD_ROUTES, PUBLIC_ROUTES } from "../../../shared/constants/routes";
@@ -15,10 +14,38 @@ import type { z } from "zod";
 
 type RegisterFormInput = z.input<typeof registerSchema>;
 type RegisterInput = z.output<typeof registerSchema>;
-type DepartmentOption = { id: string; name: string };
 
 const inputClassName =
   "mt-1.5 h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20";
+
+function EyeIcon({ off }: { off: boolean }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.8"
+      viewBox="0 0 24 24"
+    >
+      {off ? (
+        <>
+          <path d="M3 3l18 18" />
+          <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
+          <path d="M9.9 5.1A9.8 9.8 0 0 1 12 4.9c5 0 8.5 4 9.5 7.1a11.7 11.7 0 0 1-2.6 4" />
+          <path d="M6.6 6.6A11.6 11.6 0 0 0 2.5 12c1 3.1 4.5 7.1 9.5 7.1a9.7 9.7 0 0 0 4.4-1" />
+        </>
+      ) : (
+        <>
+          <path d="M2.5 12C3.5 8.9 7 4.9 12 4.9s8.5 4 9.5 7.1c-1 3.1-4.5 7.1-9.5 7.1S3.5 15.1 2.5 12Z" />
+          <circle cx="12" cy="12" r="3" />
+        </>
+      )}
+    </svg>
+  );
+}
 
 function GoogleMark() {
   return (
@@ -35,14 +62,10 @@ export function RegisterForm() {
   const router = useRouter();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [departments, setDepartments] = useState<DepartmentOption[]>([]);
-  const [departmentsLoading, setDepartmentsLoading] = useState(false);
-  const [departmentError, setDepartmentError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   const {
-    control,
     register,
     handleSubmit,
-    setValue,
     formState: { errors, isSubmitting },
   } = useForm<RegisterFormInput, unknown, RegisterInput>({
     resolver: zodResolver(registerSchema),
@@ -51,65 +74,18 @@ export function RegisterForm() {
       email: "",
       password: "",
       phone: "",
-      role: "CITIZEN",
-      departmentId: "",
     },
   });
-  const selectedRole = useWatch({ control, name: "role" }) ?? "CITIZEN";
-  const departmentRequired = selectedRole === "MANAGER" || selectedRole === "STAFF";
-  const departmentRequest = useRef<AbortController | null>(null);
-
-  useEffect(() => {
-    return () => departmentRequest.current?.abort();
-  }, []);
-
-  const roleRegistration = register("role");
-  const onRoleChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    void roleRegistration.onChange(event);
-    setValue("departmentId", "");
-    departmentRequest.current?.abort();
-
-    const role = event.currentTarget.value;
-    if (role !== "MANAGER" && role !== "STAFF") {
-      setDepartments([]);
-      setDepartmentError(null);
-      setDepartmentsLoading(false);
-      return;
-    }
-
-    const request = new AbortController();
-    departmentRequest.current = request;
-    setDepartmentsLoading(true);
-    setDepartmentError(null);
-
-    void apiClient
-      .get<DepartmentOption[]>("/api/departments", { signal: request.signal })
-      .then(setDepartments)
-      .catch((error: unknown) => {
-        if (!request.signal.aborted) {
-          const message =
-            error instanceof Error
-              ? error.message
-              : "Unable to load departments";
-          setDepartmentError(message);
-          toast.error(message);
-        }
-      })
-      .finally(() => {
-        if (!request.signal.aborted) {
-          setDepartmentsLoading(false);
-        }
-      });
-  };
 
   const onSubmit = async (values: RegisterInput) => {
     setErrorMessage(null);
 
     try {
+      // Public registration always creates a CITIZEN account.
+      // The server must ignore any role sent by the client.
       await apiClient.post("/api/auth/register", {
         ...values,
         phone: values.phone?.trim() || undefined,
-        departmentId: values.departmentId || undefined,
       });
 
       const loginResult = await signIn("credentials", {
@@ -126,7 +102,7 @@ export function RegisterForm() {
       }
 
       const session = await getSession();
-      const role = session?.user.role ?? values.role;
+      const role = session?.user.role ?? "CITIZEN";
       toast.success("Account created successfully");
       router.push(DASHBOARD_ROUTES[role]);
       router.refresh();
@@ -235,83 +211,42 @@ export function RegisterForm() {
         <label className="text-sm font-medium text-slate-700" htmlFor="register-password">
           Password *
         </label>
-        <input
-          {...register("password")}
-          aria-invalid={Boolean(errors.password)}
-          autoComplete="new-password"
-          className={inputClassName}
-          id="register-password"
-          placeholder="Minimum 8 characters"
-          type="password"
-        />
+        <div className="relative">
+          <input
+            {...register("password")}
+            aria-invalid={Boolean(errors.password)}
+            autoComplete="new-password"
+            className={`${inputClassName} pr-11`}
+            id="register-password"
+            placeholder="Minimum 8 characters"
+            type={showPassword ? "text" : "password"}
+          />
+          <button
+            aria-label={showPassword ? "Hide password" : "Show password"}
+            aria-pressed={showPassword}
+            className="absolute right-3 top-1/2 mt-[3px] -translate-y-1/2 text-slate-500 transition hover:text-slate-800"
+            onClick={() => setShowPassword((current) => !current)}
+            type="button"
+          >
+            <EyeIcon off={showPassword} />
+          </button>
+        </div>
         {errors.password ? (
           <p className="mt-1 text-xs text-red-600">{errors.password.message}</p>
         ) : null}
       </div>
 
-      <div>
-        <label className="text-sm font-medium text-slate-700" htmlFor="register-role">
-          Account Role &amp; Desired Dashboard *
-        </label>
-        <select
-          {...roleRegistration}
-          aria-invalid={Boolean(errors.role)}
-          className={inputClassName}
-          id="register-role"
-          onChange={onRoleChange}
-        >
-          <option value="CITIZEN">Citizen — Citizen Portal (/citizen)</option>
-          <option value="MANAGER">Department Manager — Manager Hub (/manager)</option>
-          <option value="STAFF">Maintenance Staff — Field Crew Portal (/staff)</option>
-          <option value="ADMIN">City Admin — Admin Console (/admin)</option>
-        </select>
-        {errors.role ? (
-          <p className="mt-1 text-xs text-red-600">{errors.role.message}</p>
-        ) : null}
-      </div>
-
-      {departmentRequired ? (
-        <div>
-          <label className="text-sm font-medium text-slate-700" htmlFor="register-department">
-            Department
-          </label>
-          <select
-            {...register("departmentId")}
-            className={inputClassName}
-            disabled={departmentsLoading || departments.length === 0}
-            id="register-department"
-          >
-            <option value="">
-              {departmentsLoading ? "Loading departments..." : "Select a department"}
-            </option>
-            {departments.map((department) => (
-              <option key={department.id} value={department.id}>
-                {department.name}
-              </option>
-            ))}
-          </select>
-          {departmentError ? (
-            <p className="mt-1 text-xs text-red-600">{departmentError}</p>
-          ) : null}
-        </div>
-      ) : null}
-
-      {selectedRole !== "CITIZEN" ? (
-        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">
-          {selectedRole === "ADMIN"
-            ? "Admin accounts must be provisioned by an existing administrator."
-            : "Manager and staff accounts require an invitation from an administrator."}
-        </p>
-      ) : null}
+      <p className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs leading-5 text-blue-900">
+        Registration creates a Citizen account. Manager, staff and admin accounts
+        are created by a city administrator.
+      </p>
 
       <button
-        className="h-11 w-full rounded-lg bg-[#2563EB] text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
+        className="h-11 w-full rounded-lg bg-[#2563EB] text-sm font-semibold text-white shadow-sm transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
         disabled={isSubmitting || googleLoading}
         type="submit"
       >
-        {isSubmitting
-          ? "Creating account..."
-          : "Register & Enter Selected Dashboard"}
+        {isSubmitting ? "Creating account..." : "Create Citizen Account"}
       </button>
 
       <div className="flex items-center gap-2 pt-1">
