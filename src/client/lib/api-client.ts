@@ -85,6 +85,8 @@ export const apiClient = {
     request<T>(input, init),
   post: <T>(input: RequestInfo | URL, body: unknown, init?: RequestInit) =>
     request<T>(input, withJsonBody(body, { ...init, method: "POST" })),
+  postForm: <T>(input: RequestInfo | URL, body: FormData, init?: RequestInit) =>
+    request<T>(input, { ...init, method: "POST", body }),
   patch: <T>(input: RequestInfo | URL, body: unknown, init?: RequestInit) =>
     request<T>(input, withJsonBody(body, { ...init, method: "PATCH" })),
   put: <T>(input: RequestInfo | URL, body: unknown, init?: RequestInit) =>
