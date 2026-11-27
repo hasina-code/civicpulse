@@ -63,6 +63,14 @@ export function DashboardSidebar({
 }) {
   const pathname = usePathname();
   const items = roleNavigation[role];
+  const activeItemHref = items
+    .filter(
+      (item) =>
+        pathname === item.href ||
+        (item.href !== `/${role.toLowerCase()}` &&
+          pathname.startsWith(`${item.href}/`)),
+    )
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
   const [departmentName, setDepartmentName] = useState<string | null>(null);
   const roleLabel =
     role === "MANAGER" && departmentName
@@ -132,7 +140,7 @@ export function DashboardSidebar({
 
       <nav aria-label="Dashboard navigation" className="mt-5 space-y-1 px-3">
         {items.map((item) => {
-          const active = pathname === item.href || (item.href !== `/${role.toLowerCase()}` && pathname.startsWith(item.href));
+          const active = activeItemHref === item.href;
           const Icon = item.icon;
           return (
             <Link
