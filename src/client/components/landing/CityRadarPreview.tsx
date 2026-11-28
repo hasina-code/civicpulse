@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -28,69 +28,6 @@ interface RadarPin {
   x: number;
   y: number;
 }
-
-const RADAR_PINS: RadarPin[] = [
-  {
-    id: "pin-1",
-    code: "CP-1042",
-    title: "Broken Streetlight & Dark Crosswalk",
-    category: "Streetlight",
-    location: "Sector 7, Lakeview Avenue",
-    status: "IN_PROGRESS",
-    updatedAt: "12 mins ago",
-    department: "Electrical & Lighting Dept.",
-    x: 28,
-    y: 34,
-  },
-  {
-    id: "pin-2",
-    code: "CP-1039",
-    title: "Deep Asphalt Pothole Near Bus Bay",
-    category: "Road Damage",
-    location: "Central Station Road",
-    status: "REPORTED",
-    updatedAt: "26 mins ago",
-    department: "Roads & Highways Division",
-    x: 64,
-    y: 26,
-  },
-  {
-    id: "pin-3",
-    code: "CP-1031",
-    title: "Blocked Storm Drain Cleared",
-    category: "Drainage",
-    location: "Greenfield South Block",
-    status: "RESOLVED",
-    updatedAt: "1 hour ago",
-    department: "Water & Drainage Authority",
-    x: 52,
-    y: 66,
-  },
-  {
-    id: "pin-4",
-    code: "CP-1028",
-    title: "Damaged Tactile Footpath Ramp",
-    category: "Footpath",
-    location: "Civic Plaza East Gate",
-    status: "IN_PROGRESS",
-    updatedAt: "2 hours ago",
-    department: "Urban Accessibility Cell",
-    x: 76,
-    y: 58,
-  },
-  {
-    id: "pin-5",
-    code: "CP-1019",
-    title: "Overflowing Public Waste Bin Emptied",
-    category: "Waste Management",
-    location: "Riverside Park North",
-    status: "RESOLVED",
-    updatedAt: "3 hours ago",
-    department: "City Sanitation Services",
-    x: 34,
-    y: 72,
-  },
-];
 
 const STATUS_META: Record<
   Exclude<IssueStatus, "ALL">,
@@ -124,26 +61,29 @@ const STATUS_META: Record<
   },
 };
 
-export function CityRadarPreview() {
+export function CityRadarPreview({ radarPins }: { radarPins: RadarPin[] }) {
   const [selectedFilter, setSelectedFilter] = useState<IssueStatus>("ALL");
-  const [activePinId, setActivePinId] = useState<string>(RADAR_PINS[0].id);
+  const [activePinId, setActivePinId] = useState<string>(radarPins[0]?.id ?? "");
 
   const visiblePins =
     selectedFilter === "ALL"
-      ? RADAR_PINS
-      : RADAR_PINS.filter((pin) => pin.status === selectedFilter);
+      ? radarPins
+      : radarPins.filter((pin) => pin.status === selectedFilter);
 
   const activePin =
     visiblePins.find((pin) => pin.id === activePinId) ??
     visiblePins[0] ??
-    RADAR_PINS[0];
+    null;
 
-  const counts = {
-    ALL: RADAR_PINS.length,
-    REPORTED: RADAR_PINS.filter((p) => p.status === "REPORTED").length,
-    IN_PROGRESS: RADAR_PINS.filter((p) => p.status === "IN_PROGRESS").length,
-    RESOLVED: RADAR_PINS.filter((p) => p.status === "RESOLVED").length,
-  };
+  const counts = useMemo(
+    () => ({
+      ALL: radarPins.length,
+      REPORTED: radarPins.filter((p) => p.status === "REPORTED").length,
+      IN_PROGRESS: radarPins.filter((p) => p.status === "IN_PROGRESS").length,
+      RESOLVED: radarPins.filter((p) => p.status === "RESOLVED").length,
+    }),
+    [radarPins],
+  );
 
   return (
     <section
@@ -214,8 +154,8 @@ export function CityRadarPreview() {
                     setSelectedFilter(tab.key);
                     const nextList =
                       tab.key === "ALL"
-                        ? RADAR_PINS
-                        : RADAR_PINS.filter((p) => p.status === tab.key);
+                        ? radarPins
+                        : radarPins.filter((p) => p.status === tab.key);
                     if (nextList.length > 0) {
                       setActivePinId(nextList[0].id);
                     }
@@ -365,6 +305,7 @@ export function CityRadarPreview() {
 
           {/* ডান পাশ: ডিটেইল কার্ড এবং কমপ্যাক্ট ফিড */}
           <div className="flex flex-col justify-between gap-4 lg:col-span-5">
+            {activePin ? (
             <div className="rounded-3xl border border-slate-200 bg-slate-50/80 p-5 shadow-sm dark:border-white/10 dark:bg-slate-900/70 dark:backdrop-blur-md">
               <div className="flex items-center justify-between gap-2">
                 <span className="font-mono text-xs font-bold text-sky-600 dark:text-sky-400">
@@ -410,13 +351,18 @@ export function CityRadarPreview() {
               <div className="mt-4 flex items-center justify-end border-t border-slate-200/80 pt-3 dark:border-white/10">
                 <Link
                   className="inline-flex items-center gap-1 text-xs font-semibold text-sky-600 transition hover:text-sky-500 dark:text-sky-400 dark:hover:text-sky-300"
-                  href="/issues"
+                  href={`/map?issueId=${encodeURIComponent(activePin.id)}`}
                 >
                   Open Live Map
                   <ArrowUpRight aria-hidden="true" className="h-3.5 w-3.5" />
                 </Link>
               </div>
             </div>
+            ) : (
+              <div className="rounded-3xl border border-slate-200 bg-slate-50/80 p-8 text-center text-sm text-slate-500 dark:border-white/10 dark:bg-slate-900/70 dark:text-slate-400">
+                No reports available for this status.
+              </div>
+            )}
 
             {/* কমপ্যাক্ট সাম্প্রতিক ফিড */}
             <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-900/50">
