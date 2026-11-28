@@ -339,11 +339,15 @@ export async function submitTaskCompletion(
   if (actor.role !== "STAFF" || task.assigneeId !== actor.id) {
     throw new AppError("Only the assigned staff member may complete this task", 403, "FORBIDDEN");
   }
-  if (task.status !== "IN_PROGRESS" || task.issue.status !== "IN_PROGRESS") {
+  if (
+    task.status !== "IN_PROGRESS" ||
+    (task.issue.status !== "ASSIGNED" && task.issue.status !== "IN_PROGRESS")
+  ) {
     throw new AppError("Task and issue must be in progress before completion", 400, "INVALID_TASK_STATE");
   }
 
-  const updated = await prisma.$transaction(async (transaction) => {
+  const result = await prisma.$transaction(async (transaction) => {
+    const issueStarted = await ensureIssueInProgress(transaction, task, actor);
     const changed = await transaction.task.updateMany({
       where: {
         id: taskId,
@@ -364,11 +368,17 @@ export async function submitTaskCompletion(
         photoUrls: completionPhotoUrls,
       },
     });
-    return transaction.task.findUniqueOrThrow({ where: { id: taskId } });
+    return {
+      task: await transaction.task.findUniqueOrThrow({ where: { id: taskId } }),
+      issueStarted,
+    };
   });
 
+  if (result.issueStarted) {
+    await notifyIssueStatusChanged(task.issueId, "IN_PROGRESS", actor.id);
+  }
   await notifyTaskCompleted(taskId);
-  return updated;
+  return result.task;
 }
 
 export async function reviewTask(
