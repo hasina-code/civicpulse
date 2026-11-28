@@ -24,21 +24,28 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const loadNotifications = async () => {
-    try {
-      const result = await apiClient.get<NotificationsResult>(
-        "/api/notifications?limit=50",
-      );
-      setNotifications(result.items);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to load notifications");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    void loadNotifications();
+    let active = true;
+    void apiClient
+      .get<NotificationsResult>("/api/notifications?limit=50")
+      .then((result) => {
+        if (active) setNotifications(result.items);
+      })
+      .catch((error: unknown) => {
+        if (active) {
+          toast.error(
+            error instanceof Error
+              ? error.message
+              : "Unable to load notifications",
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const markRead = async (notification: NotificationItem) => {
