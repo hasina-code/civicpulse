@@ -146,8 +146,13 @@ export default function ManagerReviewsPage() {
 
   useEffect(() => {
     const controller = new AbortController();
-    void load(controller.signal);
-    return () => controller.abort();
+    const timeout = window.setTimeout(() => {
+      void load(controller.signal);
+    }, 0);
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
   }, [load, reloadKey]);
 
   async function review(taskId: string, decision: ReviewDecision) {
