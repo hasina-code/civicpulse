@@ -13,6 +13,7 @@ export const ISSUE_TRANSITIONS = {
     CLOSED: managerAndAdmin,
   },
   ASSIGNED: {
+    ASSIGNED: managerAndAdmin,
     IN_PROGRESS: [USER_ROLES.STAFF, USER_ROLES.MANAGER],
   },
   IN_PROGRESS: {

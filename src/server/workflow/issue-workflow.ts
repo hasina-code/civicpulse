@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import type { IssuePriority } from "../../shared/constants/priorities";
 import { USER_ROLES } from "../../shared/constants/roles";
 import type { IssueStatus, TaskStatus } from "../../shared/constants/status";
@@ -52,8 +53,11 @@ function requireNote(note: string | undefined, message: string): string {
   return normalizedNote;
 }
 
-export async function transitionIssue(input: TransitionIssueInput) {
-  return prisma.$transaction(async (transaction) => {
+export async function transitionIssue(
+  input: TransitionIssueInput,
+  client?: Prisma.TransactionClient,
+) {
+  const execute = async (transaction: Prisma.TransactionClient) => {
     const issue = await transaction.issue.findUnique({
       where: { id: input.issueId },
       select: {
@@ -73,6 +77,9 @@ export async function transitionIssue(input: TransitionIssueInput) {
 
     let taskToUpdate:
       | { id: string; status: TaskStatus; assigneeId: string }
+      | undefined;
+    let taskToReassign:
+      | { id: string; assigneeId: string; dueAt: Date | null }
       | undefined;
     let assignment:
       | { assigneeId: string; dueAt: Date | null }
@@ -119,9 +126,24 @@ export async function transitionIssue(input: TransitionIssueInput) {
         );
       }
 
+      if (issue.status === "ASSIGNED") {
+        taskToReassign = await transaction.task.findFirst({
+          where: { issueId: issue.id, status: "PENDING" },
+          orderBy: { createdAt: "desc" },
+          select: { id: true, assigneeId: true, dueAt: true },
+        }) ?? undefined;
+        if (!taskToReassign) {
+          throw new IssueWorkflowError(
+            "Pending task not found for this issue",
+            "INVALID_INPUT",
+            400,
+          );
+        }
+      }
+
       assignment = {
         assigneeId: assignee.id,
-        dueAt: input.dueAt ?? null,
+        dueAt: input.dueAt ?? taskToReassign?.dueAt ?? null,
       };
       priority = input.priority;
     }
@@ -278,14 +300,43 @@ export async function transitionIssue(input: TransitionIssueInput) {
     }
 
     if (assignment) {
-      await transaction.task.create({
-        data: {
-          issueId: issue.id,
-          assigneeId: assignment.assigneeId,
-          assignedById: input.actor.id,
-          dueAt: assignment.dueAt,
-        },
-      });
+      if (taskToReassign) {
+        const reassigned = await transaction.task.updateMany({
+          where: {
+            id: taskToReassign.id,
+            issueId: issue.id,
+            status: "PENDING",
+          },
+          data: {
+            assigneeId: assignment.assigneeId,
+            assignedById: input.actor.id,
+            dueAt: assignment.dueAt,
+          },
+        });
+        if (reassigned.count !== 1) {
+          throw new IssueWorkflowError(
+            "Task changed while reassignment was being processed",
+            "CONFLICT",
+            409,
+          );
+        }
+        await transaction.taskUpdate.create({
+          data: {
+            taskId: taskToReassign.id,
+            authorId: input.actor.id,
+            note: `Task reassigned from ${taskToReassign.assigneeId} to ${assignment.assigneeId}.`,
+          },
+        });
+      } else {
+        await transaction.task.create({
+          data: {
+            issueId: issue.id,
+            assigneeId: assignment.assigneeId,
+            assignedById: input.actor.id,
+            dueAt: assignment.dueAt,
+          },
+        });
+      }
     }
 
     if (taskToUpdate) {
@@ -327,7 +378,9 @@ export async function transitionIssue(input: TransitionIssueInput) {
     }
 
     return updatedIssue;
-  });
+  };
+
+  return client ? execute(client) : prisma.$transaction(execute);
 }
 
 export interface RejectTaskCompletionInput {
