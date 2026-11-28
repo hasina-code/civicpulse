@@ -39,7 +39,7 @@ export default function ManagerCrewPage() {
     let active = true;
 
     void Promise.all([
-      apiClient.get<CrewResult>("/api/users?role=STAFF&limit=100&page=1"),
+      apiClient.get<CrewResult>("/api/users?role=STAFF&limit=50&page=1"),
       apiClient.get<ManagerOverview>("/api/manager/overview"),
     ])
       .then(([crewResult, overviewResult]) => {
