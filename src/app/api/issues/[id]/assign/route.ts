@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { ISSUE_PRIORITIES } from "../../../../../shared/constants/priorities";
 import { assignIssueSchema } from "../../../../../shared/validators/issue.schema";
-import { requireUser } from "../../../../../server/permissions/guards";
+import { requireManagerOrAdmin } from "../../../../../server/permissions/guards";
 import { assignIssue } from "../../../../../server/services/issue.service";
 import {
   jsonSuccess,
@@ -17,7 +17,7 @@ type RouteContext = { params: Promise<{ id: string }> };
 
 export function POST(request: Request, { params }: RouteContext) {
   return withApiErrors(async () => {
-    const actor = await requireUser();
+    const actor = await requireManagerOrAdmin();
     const { id } = await params;
     const input = await parseJsonBody(request, assignmentSchema);
     return jsonSuccess(await assignIssue(actor, {
