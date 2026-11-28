@@ -61,7 +61,16 @@ async function validateRoleDepartment(
 
 export async function listUsers(
   actor: PermissionUser,
-  input: { page?: unknown; limit?: unknown; role?: UserRole; departmentId?: string } = {},
+  input: {
+    page?: unknown;
+    limit?: unknown;
+    role?: UserRole;
+    departmentId?: string;
+    q?: string;
+    isActive?: "true" | "false";
+    sort?: "workload:asc" | "workload:desc" | "name:asc";
+    withWorkload?: "true" | "false";
+  } = {},
 ) {
   if (actor.role !== USER_ROLES.ADMIN && actor.role !== USER_ROLES.MANAGER) {
     throw new AppError("Insufficient permissions", 403, "FORBIDDEN");
@@ -70,12 +79,88 @@ export async function listUsers(
   const { page, limit, skip } = getPagination(input.page, input.limit);
   const where = {
     ...(input.role ? { role: input.role } : {}),
+    ...(input.isActive ? { isActive: input.isActive === "true" } : {}),
+    ...(input.q
+      ? {
+          OR: [
+            { name: { contains: input.q, mode: "insensitive" as const } },
+            { email: { contains: input.q, mode: "insensitive" as const } },
+            { phone: { contains: input.q, mode: "insensitive" as const } },
+          ],
+        }
+      : {}),
     ...(actor.role === USER_ROLES.MANAGER
       ? { departmentId: actor.departmentId }
       : input.departmentId
         ? { departmentId: input.departmentId }
         : {}),
   };
+
+  if (input.withWorkload === "true") {
+    const users = await prisma.user.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        isActive: true,
+        departmentId: true,
+        assignedTasks: {
+          select: {
+            status: true,
+            dueAt: true,
+          },
+        },
+      },
+      orderBy: input.sort === "name:asc" ? { name: "asc" } : { createdAt: "desc" },
+    });
+
+    const now = Date.now();
+    const withWorkload = users.map((user) => {
+      const activeTasks = user.assignedTasks.filter(
+        (task) =>
+          task.status === "PENDING" ||
+          task.status === "IN_PROGRESS" ||
+          task.status === "REJECTED",
+      );
+      const workload = {
+        active: activeTasks.length,
+        completed: user.assignedTasks.filter((task) => task.status === "COMPLETED").length,
+        overdue: activeTasks.filter(
+          (task) => task.dueAt !== null && task.dueAt.getTime() < now,
+        ).length,
+      };
+      const { assignedTasks, ...member } = user;
+      void assignedTasks;
+      return { ...member, workload };
+    });
+
+    withWorkload.sort((a, b) =>
+      input.sort === "workload:desc"
+        ? b.workload.active - a.workload.active
+        : input.sort === "workload:asc"
+          ? a.workload.active - b.workload.active
+          : a.name.localeCompare(b.name),
+    );
+
+    const total = withWorkload.length;
+    const pageItems = withWorkload.slice(skip, skip + limit);
+    const department =
+      actor.role === USER_ROLES.MANAGER && actor.departmentId
+        ? await prisma.department.findUnique({
+            where: { id: actor.departmentId },
+            select: { id: true, name: true },
+          })
+        : null;
+
+    return {
+      ...createPaginatedResult(pageItems, total, page, limit),
+      department,
+    };
+  }
+
   const [users, total] = await prisma.$transaction([
     prisma.user.findMany({
       where,
