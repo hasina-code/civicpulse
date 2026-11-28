@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { TASK_STATUSES } from "../../shared/constants/status";
+import { ISSUE_PRIORITIES } from "../../shared/constants/priorities";
 import {
   taskCompletionSchema,
   taskProgressSchema,
@@ -20,7 +21,13 @@ import {
 import { rejectTaskCompletion, transitionIssue } from "../workflow/issue-workflow";
 
 const taskListQuerySchema = paginationSchema.extend({
-  status: z.enum(TASK_STATUSES).optional(),
+  status: z.string().trim().min(1).optional(),
+  priority: z.enum(ISSUE_PRIORITIES).optional(),
+  q: z.string().trim().min(1).optional(),
+  sort: z
+    .string()
+    .regex(/^(createdAt|updatedAt|priority|status|title):(asc|desc)$/)
+    .optional(),
 });
 
 function taskScope(actor: PermissionUser) {
@@ -45,10 +52,49 @@ export async function listTasks(
 ) {
   const query = taskListQuerySchema.parse(rawQuery);
   const { page, limit, skip } = getPagination(query.page, query.limit);
-  const where = {
-    ...taskScope(actor),
-    ...(query.status ? { status: query.status } : {}),
+  const statuses = query.status
+    ? query.status.split(",").map((status) => status.trim())
+    : [];
+  if (statuses.some((status) => !TASK_STATUSES.includes(status as (typeof TASK_STATUSES)[number]))) {
+    throw new AppError("Invalid task status", 400, "VALIDATION_ERROR");
+  }
+  const scope = taskScope(actor);
+  const issueScope =
+    "issue" in scope
+      ? scope.issue ?? {}
+      : {};
+  const issueFilters = {
+    ...(query.priority ? { priority: query.priority } : {}),
   };
+  const where = {
+    ...scope,
+    ...(statuses.length === 1
+      ? { status: statuses[0] as (typeof TASK_STATUSES)[number] }
+      : statuses.length > 1
+        ? { status: { in: statuses as (typeof TASK_STATUSES)[number][] } }
+        : {}),
+    ...((Object.keys(issueScope).length > 0 || Object.keys(issueFilters).length > 0)
+      ? { issue: { ...issueScope, ...issueFilters } }
+      : {}),
+    ...(query.q
+      ? {
+          OR: [
+            { issue: { title: { contains: query.q, mode: "insensitive" as const } } },
+            { issue: { address: { contains: query.q, mode: "insensitive" as const } } },
+            { assignee: { name: { contains: query.q, mode: "insensitive" as const } } },
+          ],
+        }
+      : {}),
+  };
+  const [sortField, sortDirection] = (query.sort ?? "updatedAt:desc").split(":");
+  const orderBy =
+    sortField === "priority" || sortField === "status" || sortField === "title"
+      ? sortField === "status"
+        ? { status: sortDirection as "asc" | "desc" }
+        : sortField === "priority"
+          ? { issue: { priority: sortDirection as "asc" | "desc" } }
+          : { issue: { title: sortDirection as "asc" | "desc" } }
+      : { [sortField]: sortDirection as "asc" | "desc" };
   const [items, total] = await prisma.$transaction([
     prisma.task.findMany({
       where,
@@ -58,6 +104,8 @@ export async function listTasks(
             id: true,
             title: true,
             status: true,
+            category: true,
+            priority: true,
             address: true,
             latitude: true,
             longitude: true,
@@ -66,7 +114,7 @@ export async function listTasks(
         },
         assignee: { select: { id: true, name: true } },
       },
-      orderBy: [{ dueAt: "asc" }, { createdAt: "desc" }],
+      orderBy,
       skip,
       take: limit,
     }),
@@ -76,12 +124,57 @@ export async function listTasks(
   return createPaginatedResult(items, total, page, limit);
 }
 
+export async function getTaskSummary(actor: PermissionUser) {
+  const scope = taskScope(actor);
+  const base = scope;
+
+  const [pending, inProgress, awaitingReview, returned, overdue] =
+    await prisma.$transaction([
+      prisma.task.count({ where: { ...base, status: "PENDING" } }),
+      prisma.task.count({ where: { ...base, status: "IN_PROGRESS" } }),
+      prisma.task.count({ where: { ...base, status: "COMPLETED" } }),
+      prisma.task.count({ where: { ...base, status: "REJECTED" } }),
+      prisma.task.count({
+        where: {
+          ...base,
+          status: { not: "COMPLETED" },
+          dueAt: { lt: new Date() },
+        },
+      }),
+    ]);
+
+  return {
+    pending,
+    inProgress,
+    awaitingReview,
+    returned,
+    overdue,
+  };
+}
+
 export async function getTaskById(actor: PermissionUser, taskId: string) {
   const task = await prisma.task.findUnique({
     where: { id: taskId },
     include: {
-      issue: { select: { id: true, departmentId: true, status: true } },
-      updates: { orderBy: { createdAt: "desc" } },
+      issue: {
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          category: true,
+          priority: true,
+          address: true,
+          latitude: true,
+          longitude: true,
+          imageUrls: true,
+          departmentId: true,
+          status: true,
+        },
+      },
+      updates: {
+        orderBy: { createdAt: "desc" },
+        include: { author: { select: { name: true } } },
+      },
     },
   });
   if (!task) {
