@@ -159,7 +159,7 @@ export default function ManagerDashboardPage() {
           </button>
           <a
             className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-sky-500 px-4 text-xs font-black text-slate-950 shadow-lg shadow-sky-500/20 transition hover:bg-sky-400 dark:bg-sky-400 dark:hover:bg-sky-300"
-            href="#department-queue"
+            href="/manager/department-queue"
           >
             <ArrowDown aria-hidden="true" className="h-3.5 w-3.5" />
             Open Triage Queue
