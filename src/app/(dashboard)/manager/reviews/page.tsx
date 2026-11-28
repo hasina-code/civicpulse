@@ -67,7 +67,7 @@ function isOverdue(dueAt: string | null) {
 }
 
 
-/* Page   */
+/* Page */
 
 
 export default function ManagerReviewsPage() {
