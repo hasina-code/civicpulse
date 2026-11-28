@@ -37,9 +37,9 @@ import {
 import type { IssuePriority } from "../../../../../shared/constants/priorities";
 import type { TaskStatus } from "../../../../../shared/constants/status";
 
-/* ------------------------------------------------------------------ */
-/* Types & constants                                                   */
-/* ------------------------------------------------------------------ */
+
+/* Types & constants */
+
 
 type TaskDetail = {
   id: string;
@@ -63,7 +63,7 @@ type TaskDetail = {
   updates: {
     id: string;
     note: string;
-    imageUrls: string[];
+    photoUrls: string[];
     createdAt: string;
     author: { name: string } | null;
   }[];
@@ -144,9 +144,8 @@ async function uploadImage(file: File): Promise<string> {
   return url;
 }
 
-/* ------------------------------------------------------------------ */
-/* Page                                                                */
-/* ------------------------------------------------------------------ */
+/* Page  */
+
 
 export default function StaffTaskDetailPage({
   params,
@@ -263,7 +262,7 @@ export default function StaffTaskDetailPage({
       </Link>
 
       <div className="mt-5 grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
-        {/* ---------------- Left: issue information ---------------- */}
+        {/*  Left: issue information */}
         <div className="space-y-6">
           <section className={`${cardClass} sm:p-8`}>
             <div className="flex flex-wrap items-center gap-2.5">
@@ -400,9 +399,9 @@ export default function StaffTaskDetailPage({
                     <p className="whitespace-pre-line text-sm text-slate-700 dark:text-slate-200">
                       {update.note}
                     </p>
-                    {update.imageUrls.length > 0 ? (
+                    {update.photoUrls.length > 0 ? (
                       <div className="mt-2 flex flex-wrap gap-2">
-                        {update.imageUrls.map((url) => (
+                        {update.photoUrls.map((url) => (
                           <button
                             className="overflow-hidden rounded-lg border border-slate-200 dark:border-white/10"
                             key={url}
@@ -430,7 +429,7 @@ export default function StaffTaskDetailPage({
           </section>
         </div>
 
-        {/* ---------------- Right: actions ---------------- */}
+        {/*  Right: actions */}
         <aside className="space-y-6 lg:sticky lg:top-6 lg:h-fit">
           {task.status === "COMPLETED" ? (
             <section className="rounded-3xl border border-emerald-300 bg-emerald-50 p-6 dark:border-emerald-900/60 dark:bg-emerald-950/20">
@@ -478,9 +477,9 @@ export default function StaffTaskDetailPage({
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Photo grid                                                          */
-/* ------------------------------------------------------------------ */
+
+/* Photo grid   */
+
 
 function PhotoGrid({
   title,
@@ -517,9 +516,8 @@ function PhotoGrid({
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Photo uploader                                                      */
-/* ------------------------------------------------------------------ */
+/* Photo uploader  */
+
 
 function PhotoUploader({
   urls,
@@ -628,9 +626,9 @@ function PhotoUploader({
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Work panel (start / update / complete)                              */
-/* ------------------------------------------------------------------ */
+
+/* Work panel (start / update / complete) */
+
 
 function WorkPanel({
   task,
