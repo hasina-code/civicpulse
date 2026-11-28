@@ -16,6 +16,10 @@ import {
 const userQuerySchema = paginationSchema.extend({
   role: z.enum(USER_ROLES).optional(),
   departmentId: idSchema.optional(),
+  q: z.string().trim().min(1).optional(),
+  isActive: z.enum(["true", "false"]).optional(),
+  sort: z.enum(["workload:asc", "workload:desc", "name:asc"]).optional(),
+  withWorkload: z.enum(["true", "false"]).optional(),
 });
 
 export function GET(request: Request) {
