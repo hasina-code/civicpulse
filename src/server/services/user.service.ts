@@ -17,6 +17,20 @@ function assertAdmin(actor: PermissionUser): void {
   }
 }
 
+function assertManagerDepartment(
+  actor: PermissionUser,
+  departmentId: string | undefined,
+) {
+  if (actor.role === USER_ROLES.MANAGER) {
+    if (!actor.departmentId) {
+      throw new AppError("Manager is not assigned to a department", 403, "FORBIDDEN");
+    }
+    if (departmentId && departmentId !== actor.departmentId) {
+      throw new AppError("Managers may only list their own department", 403, "FORBIDDEN");
+    }
+  }
+}
+
 async function validateRoleDepartment(
   role: UserRole,
   departmentId: string | null,
@@ -49,11 +63,18 @@ export async function listUsers(
   actor: PermissionUser,
   input: { page?: unknown; limit?: unknown; role?: UserRole; departmentId?: string } = {},
 ) {
-  assertAdmin(actor);
+  if (actor.role !== USER_ROLES.ADMIN && actor.role !== USER_ROLES.MANAGER) {
+    throw new AppError("Insufficient permissions", 403, "FORBIDDEN");
+  }
+  assertManagerDepartment(actor, input.departmentId);
   const { page, limit, skip } = getPagination(input.page, input.limit);
   const where = {
     ...(input.role ? { role: input.role } : {}),
-    ...(input.departmentId ? { departmentId: input.departmentId } : {}),
+    ...(actor.role === USER_ROLES.MANAGER
+      ? { departmentId: actor.departmentId }
+      : input.departmentId
+        ? { departmentId: input.departmentId }
+        : {}),
   };
   const [users, total] = await prisma.$transaction([
     prisma.user.findMany({
