@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { TASK_STATUSES } from "../../shared/constants/status";
 import { ISSUE_PRIORITIES } from "../../shared/constants/priorities";
@@ -19,6 +20,41 @@ import {
   notifyTaskReviewed,
 } from "./notification.service";
 import { rejectTaskCompletion, transitionIssue } from "../workflow/issue-workflow";
+
+async function ensureIssueInProgress(
+  transaction: Prisma.TransactionClient,
+  task: { id: string; issueId: string },
+  actor: PermissionUser,
+) {
+  const issue = await transaction.issue.findUnique({
+    where: { id: task.issueId },
+    select: { status: true },
+  });
+  if (!issue) {
+    throw new AppError("Issue not found", 404, "ISSUE_NOT_FOUND");
+  }
+  if (issue.status === "IN_PROGRESS") {
+    return false;
+  }
+  if (issue.status !== "ASSIGNED") {
+    throw new AppError(
+      "Progress can only be added to an assigned or in-progress issue",
+      400,
+      "INVALID_ISSUE_STATE",
+    );
+  }
+
+  await transitionIssue(
+    {
+      issueId: task.issueId,
+      toStatus: "IN_PROGRESS",
+      actor,
+      taskId: task.id,
+    },
+    transaction,
+  );
+  return true;
+}
 
 const taskListQuerySchema = paginationSchema.extend({
   status: z.string().trim().min(1).optional(),
@@ -264,13 +300,16 @@ export async function addTaskProgress(
     throw new AppError("Progress cannot be added to a completed task", 400, "INVALID_TASK_STATE");
   }
 
-  return prisma.$transaction(async (transaction) => {
-    const changed = await transaction.task.updateMany({
-      where: { id: task.id, status: task.status, assigneeId: actor.id },
-      data: { status: "IN_PROGRESS" },
-    });
-    if (changed.count !== 1) {
-      throw new AppError("Task changed while progress was being added", 409, "TASK_CONFLICT");
+  const result = await prisma.$transaction(async (transaction) => {
+    const issueStarted = await ensureIssueInProgress(transaction, task, actor);
+    if (!issueStarted) {
+      const changed = await transaction.task.updateMany({
+        where: { id: task.id, status: task.status, assigneeId: actor.id },
+        data: { status: "IN_PROGRESS" },
+      });
+      if (changed.count !== 1) {
+        throw new AppError("Task changed while progress was being added", 409, "TASK_CONFLICT");
+      }
     }
 
     const update = await transaction.taskUpdate.create({
@@ -282,8 +321,12 @@ export async function addTaskProgress(
       },
     });
 
-    return update;
+    return { update, issueStarted };
   });
+  if (result.issueStarted) {
+    await notifyIssueStatusChanged(task.issueId, "IN_PROGRESS", actor.id);
+  }
+  return result.update;
 }
 
 export async function submitTaskCompletion(
