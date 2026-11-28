@@ -184,8 +184,13 @@ export default function ManagerCrewWorkloadPage() {
 
   useEffect(() => {
     const controller = new AbortController();
-    void load(controller.signal);
-    return () => controller.abort();
+    const timeout = window.setTimeout(() => {
+      void load(controller.signal);
+    }, 0);
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
   }, [load, reloadKey]);
 
   // Summary for the members currently loaded on this page.
