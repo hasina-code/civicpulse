@@ -694,7 +694,11 @@ function ManagerActions({
     if (!needsAssignment) return;
     let cancelled = false;
 
-    const query = new URLSearchParams({ role: "STAFF", limit: "50" });
+    const query = new URLSearchParams({
+      role: "STAFF",
+      isActive: "true",
+      limit: "50",
+    });
     if (issue.department?.id) query.set("departmentId", issue.department.id);
 
     void apiClient
@@ -839,7 +843,11 @@ function ManagerActions({
               disabled={busy || !staffId}
               onClick={() =>
                 void run(
-                  () => apiClient.post(`/api/issues/${issue.id}/assign`, { staffId }),
+                  () =>
+                    apiClient.post(`/api/issues/${issue.id}/assign`, {
+                      assigneeId: staffId,
+                      priority,
+                    }),
                   "Task assigned",
                 )
               }
