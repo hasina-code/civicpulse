@@ -163,13 +163,11 @@ export default function SettingsPage() {
 
   return (
     <div className="relative isolate mx-auto max-w-5xl px-5 py-8 sm:px-8 sm:py-10">
-      {/* ব্যাকগ্রাউন্ড অ্যাম্বিয়েন্ট গ্লো */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute -top-12 right-10 -z-10 h-64 w-64 rounded-full bg-sky-400/10 blur-[110px]"
       />
 
-      {/* পেজ হেডার */}
       <header className="mb-7">
         <div className="inline-flex items-center gap-2 rounded-full border border-sky-500/25 bg-sky-500/10 px-3.5 py-1 dark:border-sky-400/30 dark:bg-sky-400/10">
           <Sparkles
@@ -192,7 +190,6 @@ export default function SettingsPage() {
         </p>
       </header>
 
-      {/* প্রোফাইল ওভারভিউ ও অ্যাভাটার আপলোড কার্ড */}
       <div className="mb-6 flex flex-col justify-between gap-5 rounded-3xl border border-slate-200/90 bg-gradient-to-r from-sky-500/[0.06] via-white to-amber-500/[0.05] p-6 shadow-sm dark:border-white/10 dark:from-sky-500/10 dark:via-slate-900/80 dark:to-amber-500/5 sm:flex-row sm:items-center">
         <div className="flex items-center gap-4 sm:gap-5">
           <div className="group relative h-20 w-20 shrink-0">
@@ -268,9 +265,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* ২-কলাম সেটিংস ফর্ম */}
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* বাম কার্ড: পার্সোনাল ইনফরমেশন */}
         <form
           className="flex flex-col justify-between rounded-3xl border border-slate-200/90 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-slate-900/70 dark:backdrop-blur-md"
           onSubmit={updateProfile}
@@ -377,7 +372,6 @@ export default function SettingsPage() {
           </div>
         </form>
 
-        {/* ডান কার্ড: পাসওয়ার্ড পরিবর্তন */}
         <form
           className="flex flex-col justify-between rounded-3xl border border-slate-200/90 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-slate-900/70 dark:backdrop-blur-md"
           onSubmit={updatePassword}
